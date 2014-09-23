@@ -55,7 +55,7 @@ module Rosette
         end
       end
 
-      def translations_by_commits(repo_name, commit_id_map)
+      def translations_by_commits(repo_name, locale, commit_id_map)
         if block_given?
           each_phrase_condition_slice(commit_id_map) do |conditions|
             trans = trans_model
@@ -68,9 +68,9 @@ module Rosette
                     .ast
                 )
               )
-              .order(:updated_at)
-              .reverse_order
-              .group(:locale)
+              .where(locale: locale)
+              # .order(:updated_at)  # why are these here?
+              # .reverse_order
 
             yield trans
           end
@@ -99,14 +99,56 @@ module Rosette
           trans = trans_model.new(find_params)
 
           unless trans.save
-            raise AddTranslationError, trans.errors.full_messages.first
+            raise(
+              Rosette::DataStores::Errors::AddTranslationError,
+              trans.errors.full_messages.first
+            )
           end
         else
           raise(
-            PhraseNotFoundError,
+            Rosette::DataStores::Errors::PhraseNotFoundError,
             "couldn't find phrase identified by key '#{params[:key]}' and meta key '#{params[:meta_key]}'"
           )
         end
+      end
+
+      def each_unique_commit(repo_name)
+        if block_given?
+          # ActiveRecord's find_in_batches will occasionally yield a commit_id we've
+          # already seen because there are numerous entries with the sames commit_id.
+          # They overlap when queried in batches.
+          seen_ids = Set.new
+          query = phrase_model.select([:commit_id, :id])
+            .where(repo_name: repo_name)
+            .group(:commit_id)
+
+          query.find_in_batches(batch_size: CHUNK_SIZE) do |batch|
+            batch.each do |entry|
+              unless seen_ids.include?(entry.commit_id)
+                yield entry.commit_id
+              end
+
+              seen_ids << entry.commit_id
+            end
+          end
+        else
+          to_enum(__method__, repo_name)
+        end
+      end
+
+      def unique_commit_count(repo_name)
+        count = Arel::Nodes::NamedFunction.new(
+          'COUNT', [Arel::Nodes::NamedFunction.new(
+              'DISTINCT', [phrase_model[:commit_id]]
+            )
+          ]
+        )
+
+        phrase_model
+          .select(count.as('commit_count'))
+          .where(repo_name: repo_name)
+          .first
+          .attributes['commit_count']
       end
 
       private
