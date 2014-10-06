@@ -96,7 +96,7 @@ module Rosette
             .extract_params_from(params)
             .merge(phrase_id: phrase.id)
 
-          trans = trans_model.new(find_params)
+          trans = trans_model.first_or_initialize(find_params)
 
           unless trans.save
             raise(
