@@ -12,6 +12,8 @@ module Rosette
             t.text :translation
             t.timestamps
           end
+
+          add_index :translations, [:phrase_id, :locale, :translation], length: { translation: 255 }
         end
 
         def down

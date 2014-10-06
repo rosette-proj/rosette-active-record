@@ -96,7 +96,14 @@ module Rosette
             .extract_params_from(params)
             .merge(phrase_id: phrase.id)
 
-          trans = trans_model.first_or_initialize(find_params)
+          # index can only handle first 255 chars of translation, so this
+          # query may potentially return multiple results
+          trans = trans_model.where(find_params).find do |t|
+            t.translation == find_params[:translation]
+          end
+
+          trans ||= trans_model.new
+          trans.assign_attributes(find_params)
 
           unless trans.save
             raise(
