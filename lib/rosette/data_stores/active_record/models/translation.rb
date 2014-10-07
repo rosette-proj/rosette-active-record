@@ -6,8 +6,6 @@ module Rosette
 
       class Translation < ActiveRecord::Base
         extend ExtractParams
-        include Rosette::Core::PhraseIndexPolicy
-        include Rosette::Core::PhraseToHash
 
         validates :translation, presence: true
         validates :phrase_id, presence: true

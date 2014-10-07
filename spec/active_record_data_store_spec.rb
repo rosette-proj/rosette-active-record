@@ -232,4 +232,28 @@ describe ActiveRecordDataStore do
       end
     end
   end
+
+  describe '#each_unique_commit' do
+    it 'yields once for each unique commit in the database' do
+      commit_ids = create_list(:phrase, 3).map(&:commit_id)
+      create(:phrase, commit_id: commit_ids.last)  # duplicate
+
+      datastore.each_unique_commit(repo_name) do |commit_id|
+        expect(commit_ids).to include(commit_id)
+        commit_ids.delete(commit_id)
+      end
+
+      expect(commit_ids.size).to eq(0)
+    end
+  end
+
+  describe '#unique_commit_count' do
+    it 'returns the number of unique commits in the database' do
+      commit_ids = create_list(:phrase, 3).map(&:commit_id)
+      create(:phrase, commit_id: commit_ids.last)  # duplicate
+
+      expect(Phrase.count).to eq(4)
+      expect(datastore.unique_commit_count(repo_name)).to eq(3)
+    end
+  end
 end
