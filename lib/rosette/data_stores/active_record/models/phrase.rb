@@ -9,6 +9,11 @@ module Rosette
         include Rosette::Core::PhraseIndexPolicy
         include Rosette::Core::PhraseToHash
 
+        validates :repo_name, presence: true
+        validates :key, presence: true
+        validates :file, presence: true
+        validates :commit_id, presence: true
+
         has_many :translations
 
         # eventually include ArelHelpers and remove this method

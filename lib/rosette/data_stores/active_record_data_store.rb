@@ -12,9 +12,11 @@ module Rosette
       CHUNK_SIZE = 20
 
       def initialize(connection_options = {})
-        ActiveRecord::Base.establish_connection(
-          connection_options
-        )
+        if connection_options
+          ActiveRecord::Base.establish_connection(
+            connection_options
+          )
+        end
       end
 
       def store_phrase(repo_name, phrase)
@@ -40,14 +42,16 @@ module Rosette
       def phrases_by_commits(repo_name, commit_id_map)
         if block_given?
           if commit_id_map.is_a?(Array)
-            yield(
-              phrase_model.where(repo_name: repo_name).where(
-                phrases_by_commit_arr(commit_id_map)
-              )
+            query = phrase_model.where(repo_name: repo_name).where(
+              phrases_by_commit_arr(commit_id_map)
             )
+
+            query.each { |phrase| yield phrase }
           else
             each_phrase_condition_slice(commit_id_map).flat_map do |conditions|
-              yield phrase_model.where(repo_name: repo_name).where(conditions)
+              phrase_model.where(repo_name: repo_name).where(conditions).each do |phrase|
+                yield phrase
+              end
             end
           end
         else
@@ -72,7 +76,7 @@ module Rosette
               # .order(:updated_at)  # why are these here?
               # .reverse_order
 
-            yield trans
+            trans.each { |t| yield t }
           end
         else
           to_enum(__method__, repo_name, commit_id_map)
@@ -86,30 +90,44 @@ module Rosette
           .first
       end
 
-      def add_translation(repo_name, params = {})
+      # params must include key or meta_key, commit_id, translation, and locale
+      def add_or_update_translation(repo_name, params = {})
+        required_params = [
+          phrase_model.index_key(params[:key], params[:meta_key]),
+          :commit_id, :translation, :locale
+        ]
+
+        missing_params = required_params - params.keys
+
+        if missing_params.size > 0
+          raise Rosette::DataStores::Errors::MissingParamError,
+            "missing params: #{missing_params.join(', ')}"
+        end
+
         phrase = lookup_phrase(
           repo_name, params[:key], params[:meta_key], params[:commit_id]
         )
 
         if phrase
-          find_params = trans_model
+          params = trans_model
             .extract_params_from(params)
             .merge(phrase_id: phrase.id)
 
-          # index can only handle first 255 chars of translation, so this
-          # query may potentially return multiple results
-          trans = trans_model.where(find_params).find do |t|
-            t.translation == find_params[:translation]
-          end
+          find_params = params.dup
+          find_params.delete(:translation)  # may have changed
 
-          trans ||= trans_model.new
-          trans.assign_attributes(find_params)
+          trans = trans_model.where(find_params)
+          trans << trans_model.new if trans.size == 0
 
-          unless trans.save
-            raise(
-              Rosette::DataStores::Errors::AddTranslationError,
-              trans.errors.full_messages.first
-            )
+          trans.each do |t|
+            t.assign_attributes(params)
+
+            unless t.save
+              raise(
+                Rosette::DataStores::Errors::AddTranslationError,
+                t.errors.full_messages.join(', ')
+              )
+            end
           end
         else
           raise(
@@ -122,7 +140,7 @@ module Rosette
       def each_unique_commit(repo_name)
         if block_given?
           # ActiveRecord's find_in_batches will occasionally yield a commit_id we've
-          # already seen because there are numerous entries with the sames commit_id.
+          # already seen because there are numerous entries with the same commit_id.
           # They overlap when queried in batches.
           seen_ids = Set.new
           query = phrase_model.select([:commit_id, :id])
