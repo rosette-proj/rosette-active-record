@@ -4,6 +4,7 @@ require 'active_record'
 require 'rosette/core'
 require 'rosette/data_stores'
 require 'rosette/data_stores/active_record/models'
+require 'thread'
 
 module Rosette
   module DataStores
@@ -17,6 +18,8 @@ module Rosette
             connection_options
           )
         end
+
+        @@mutex = Mutex.new
       end
 
       def store_phrase(repo_name, phrase)
@@ -176,6 +179,24 @@ module Rosette
           .attributes['commit_count']
       end
 
+      def get_last_commit_id_for_repo(repo_name)
+        repo_last_commit_model
+          .where(repo_name: repo_name)
+          .first
+          .try(:last_commit_id)
+      end
+
+      def save_last_commit_id_for_repo(repo_name, commit_id)
+        @@mutex.synchronize do
+          repo_last_commit = repo_last_commit_model
+            .where(repo_name: repo_name)
+            .first_or_initialize
+
+          repo_last_commit.last_commit_id = commit_id
+          repo_last_commit.save
+        end
+      end
+
       private
 
       def phrases_by_commit_arr(arr)
@@ -224,6 +245,10 @@ module Rosette
 
       def trans_model
         self.class::Translation
+      end
+
+      def repo_last_commit_model
+        self.class::RepoLastCommit
       end
     end
 
