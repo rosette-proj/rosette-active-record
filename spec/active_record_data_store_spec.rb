@@ -256,4 +256,44 @@ describe ActiveRecordDataStore do
       expect(datastore.unique_commit_count(repo_name)).to eq(3)
     end
   end
+
+  describe '#get_last_commit_id_for_repo' do
+    let(:commit_id) { '1234' }
+
+    it 'returns the last commit id for a repo' do
+      create(:repo_last_commit, last_commit_id: commit_id)
+      expect(datastore.get_last_commit_id_for_repo(repo_name)).to eq(commit_id)
+    end
+  end
+
+  describe '#save_last_commit_id_for_repo' do
+    let(:commit_id) { '4321' }
+
+    context 'the repo does not have a last commit entry' do
+      it 'saves the last commit id for the repo' do
+        expect(RepoLastCommit.count).to eq(0)
+        datastore.save_last_commit_id_for_repo(repo_name, commit_id)
+
+        expect(RepoLastCommit.count).to eq(1)
+        RepoLastCommit.first.tap do |repo_last_commit|
+          repo_last_commit.repo_name = repo_name
+          repo_last_commit.last_commit_id = commit_id
+        end
+      end
+    end
+
+    context 'the repo has a last commit entry' do
+      it 'updates the last commit id for the repo' do
+        create(:repo_last_commit, last_commit_id: commit_id)
+
+        expect{datastore.save_last_commit_id_for_repo(repo_name, commit_id)}
+          .to_not change{RepoLastCommit.count}
+
+        RepoLastCommit.first.tap do |repo_last_commit|
+          repo_last_commit.repo_name = repo_name
+          repo_last_commit.last_commit_id = commit_id
+        end
+      end
+    end
+  end
 end

@@ -17,6 +17,7 @@ RSpec.configure do |config|
 
   Phrase = Rosette::DataStores::ActiveRecordDataStore::Phrase
   Translation = Rosette::DataStores::ActiveRecordDataStore::Translation
+  RepoLastCommit = Rosette::DataStores::ActiveRecordDataStore::RepoLastCommit
 
   FactoryGirl.definition_file_paths = [factory_path]
   Dir.glob("#{factory_path}/*.rb").each { |f| require f }
