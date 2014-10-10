@@ -6,15 +6,15 @@ namespace :rosette do
   namespace :ar do
 
     task :setup do
-      SchemaManager.setup
+      Rosette::DataStores::ActiveRecordDataStore::SchemaManager.setup
     end
 
     task :migrate do
-      SchemaManager.migrate
+      Rosette::DataStores::ActiveRecordDataStore::SchemaManager.migrate
     end
 
     task :rollback do
-      SchemaManager.rollback
+      Rosette::DataStores::ActiveRecordDataStore::SchemaManager.rollback
     end
 
   end
