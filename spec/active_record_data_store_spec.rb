@@ -257,43 +257,48 @@ describe ActiveRecordDataStore do
     end
   end
 
-  describe '#get_last_commit_id_for_repo' do
-    let(:commit_id) { '1234' }
+  describe '#add_or_update_commit_log' do
+    let(:commit_id) { '4321' }
 
-    it 'returns the last commit id for a repo' do
-      create(:repo_last_commit, last_commit_id: commit_id)
-      expect(datastore.get_last_commit_id_for_repo(repo_name)).to eq(commit_id)
+    context 'the commit has not been logged yet' do
+      it 'creates a new commit log entry' do
+        expect(CommitLog.count).to eq(0)
+        datastore.add_or_update_commit_log(repo_name, commit_id)
+
+        expect(CommitLog.count).to eq(1)
+        CommitLog.first.tap do |log_entry|
+          expect(log_entry.repo_name).to eq(repo_name)
+          expect(log_entry.commit_id).to eq (commit_id)
+          expect(log_entry.status).to eq(CommitLog::UNTRANSLATED)
+        end
+      end
+    end
+
+    context 'the commit has already been logged' do
+      it 'updates the commit status' do
+        create(:commit_log, commit_id: commit_id)
+
+        expect { datastore.add_or_update_commit_log(repo_name, commit_id, CommitLog::PENDING) }
+          .to_not change { CommitLog.count }
+
+        CommitLog.first.tap do |log_entry|
+          expect(log_entry.repo_name).to eq(repo_name)
+          expect(log_entry.commit_id).to eq(commit_id)
+          expect(log_entry.status).to eq(CommitLog::PENDING)
+        end
+      end
     end
   end
 
-  describe '#save_last_commit_id_for_repo' do
-    let(:commit_id) { '4321' }
+  describe '#seen_commits_in' do
+    it 'returns the commits in the list that are also in the commit log' do
+      commits = create_list(:commit_log, 2)
+      seen_commits = datastore.seen_commits_in(
+        repo_name, [commits.first.commit_id, 'foobar']
+      )
 
-    context 'the repo does not have a last commit entry' do
-      it 'saves the last commit id for the repo' do
-        expect(RepoLastCommit.count).to eq(0)
-        datastore.save_last_commit_id_for_repo(repo_name, commit_id)
-
-        expect(RepoLastCommit.count).to eq(1)
-        RepoLastCommit.first.tap do |repo_last_commit|
-          repo_last_commit.repo_name = repo_name
-          repo_last_commit.last_commit_id = commit_id
-        end
-      end
-    end
-
-    context 'the repo has a last commit entry' do
-      it 'updates the last commit id for the repo' do
-        create(:repo_last_commit, last_commit_id: commit_id)
-
-        expect{datastore.save_last_commit_id_for_repo(repo_name, commit_id)}
-          .to_not change{RepoLastCommit.count}
-
-        RepoLastCommit.first.tap do |repo_last_commit|
-          repo_last_commit.repo_name = repo_name
-          repo_last_commit.last_commit_id = commit_id
-        end
-      end
+      expect(seen_commits.size).to eq(1)
+      expect(seen_commits.first).to eq(commits.first.commit_id)
     end
   end
 end

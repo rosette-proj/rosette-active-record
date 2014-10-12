@@ -1,10 +1,10 @@
 # encoding: UTF-8
 
+require 'thread'
 require 'active_record'
 require 'rosette/core'
 require 'rosette/data_stores'
 require 'rosette/data_stores/active_record/models'
-require 'thread'
 
 module Rosette
   module DataStores
@@ -179,22 +179,24 @@ module Rosette
           .attributes['commit_count']
       end
 
-      def get_last_commit_id_for_repo(repo_name)
-        repo_last_commit_model
-          .where(repo_name: repo_name)
-          .first
-          .try(:last_commit_id)
+      def add_or_update_commit_log(repo_name, commit_id, status = commit_log::UNTRANSLATED)
+        log_entry = commit_log
+          .where(repo_name: repo_name, commit_id: commit_id)
+          .first_or_initialize
+
+        log_entry.assign_attributes(status: status)
+
+        unless log_entry.save
+          raise Rosette::DataStores::Errors::PhraseNotFoundError,
+            "Unable to update commit #{commit_id}: #{log_entry.errors.full_messages.first}"
+        end
       end
 
-      def save_last_commit_id_for_repo(repo_name, commit_id)
-        @@mutex.synchronize do
-          repo_last_commit = repo_last_commit_model
-            .where(repo_name: repo_name)
-            .first_or_initialize
-
-          repo_last_commit.last_commit_id = commit_id
-          repo_last_commit.save
-        end
+      def seen_commits_in(repo_name, commit_id_list)
+        commit_log
+          .where(repo_name: repo_name)
+          .where(commit_id: commit_id_list)
+          .pluck(:commit_id)
       end
 
       private
@@ -247,8 +249,8 @@ module Rosette
         self.class::Translation
       end
 
-      def repo_last_commit_model
-        self.class::RepoLastCommit
+      def commit_log
+        self.class::CommitLog
       end
     end
 
