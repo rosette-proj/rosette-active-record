@@ -181,7 +181,7 @@ module Rosette
       end
 
       def add_or_update_commit_log(repo_name, commit_id, status = Rosette::DataStores::PhraseStatus::UNTRANSLATED)
-        log_entry = commit_log
+        log_entry = commit_log_model
           .where(repo_name: repo_name, commit_id: commit_id)
           .first_or_initialize
 
@@ -194,10 +194,24 @@ module Rosette
       end
 
       def seen_commits_in(repo_name, commit_id_list)
-        commit_log
+        commit_log_model
           .where(repo_name: repo_name)
           .where(commit_id: commit_id_list)
           .pluck(:commit_id)
+      end
+
+      def add_or_update_commit_log_locale(commit_id, locale, translated_count)
+        commit_log_locale_entry = commit_log_locale_model
+          .where(commit_id: commit_id)
+          .where(locale: locale)
+          .first_or_initialize
+
+        commit_log_locale_entry.assign_attributes(translated_count: translated_count)
+
+        unless commit_log_locale_entry.save
+          raise Rosette::DataStores::Errors::CommitLogLocaleUpdateError,
+            "Unable to update commit log locale #{commit_id} #{locale}: #{commit_log_locale_entry.errors.full_messages.first}"
+        end
       end
 
       private
@@ -250,8 +264,12 @@ module Rosette
         self.class::Translation
       end
 
-      def commit_log
+      def commit_log_model
         self.class::CommitLog
+      end
+
+      def commit_log_locale_model
+        self.class::CommitLogLocale
       end
     end
 
