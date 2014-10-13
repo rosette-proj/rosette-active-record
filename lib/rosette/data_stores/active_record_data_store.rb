@@ -187,7 +187,7 @@ module Rosette
         log_entry.assign_attributes(status: status)
 
         unless log_entry.save
-          raise Rosette::DataStores::Errors::PhraseNotFoundError,
+          raise Rosette::DataStores::Errors::CommitLogUpdateError,
             "Unable to update commit #{commit_id}: #{log_entry.errors.full_messages.first}"
         end
       end
