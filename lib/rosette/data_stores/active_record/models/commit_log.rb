@@ -5,11 +5,7 @@ module Rosette
     class ActiveRecordDataStore
       class CommitLog < ActiveRecord::Base
 
-        UNTRANSLATED = 'UNTRANSLATED'
-        PENDING = 'PENDING'
-        TRANSLATED = 'TRANSLATED'
-
-        STATUSES = [UNTRANSLATED, PENDING, TRANSLATED]
+        STATUSES = Rosette::DataStores::PhraseStatus.constants.map(&:to_s)
 
         validates :commit_id, presence: true
         validates :status, inclusion: { in: STATUSES }

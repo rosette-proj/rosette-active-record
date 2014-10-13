@@ -4,6 +4,7 @@ require 'thread'
 require 'active_record'
 require 'rosette/core'
 require 'rosette/data_stores'
+require 'rosette/data_stores/phrase_status'
 require 'rosette/data_stores/active_record/models'
 
 module Rosette
@@ -179,7 +180,7 @@ module Rosette
           .attributes['commit_count']
       end
 
-      def add_or_update_commit_log(repo_name, commit_id, status = commit_log::UNTRANSLATED)
+      def add_or_update_commit_log(repo_name, commit_id, status = Rosette::DataStores::PhraseStatus::UNTRANSLATED)
         log_entry = commit_log
           .where(repo_name: repo_name, commit_id: commit_id)
           .first_or_initialize
