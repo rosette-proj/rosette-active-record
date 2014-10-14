@@ -180,12 +180,13 @@ module Rosette
           .attributes['commit_count']
       end
 
-      def add_or_update_commit_log(repo_name, commit_id, status = Rosette::DataStores::PhraseStatus::UNTRANSLATED)
+      def add_or_update_commit_log(repo_name, commit_id, status = Rosette::DataStores::PhraseStatus::UNTRANSLATED, phrase_count = nil)
         log_entry = commit_log_model
           .where(repo_name: repo_name, commit_id: commit_id)
           .first_or_initialize
 
         log_entry.assign_attributes(status: status)
+        log_entry.assign_attributes(phrase_count: phrase_count) if phrase_count
 
         unless log_entry.save
           raise Rosette::DataStores::Errors::CommitLogUpdateError,
