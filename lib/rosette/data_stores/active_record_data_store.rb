@@ -39,7 +39,7 @@ module Rosette
         # the ActiveRecord objects, which respond to the same methods.
         params = { repo_name: repo_name, commit_id: commit_id }
         params[:file] = file if file
-        phrase_model.where(params)
+        phrase_model.where(params).to_a
       end
 
       # commit_id_map is a hash of commit_ids to file paths
