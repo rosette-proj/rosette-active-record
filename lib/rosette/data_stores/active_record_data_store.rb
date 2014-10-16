@@ -24,198 +24,224 @@ module Rosette
       end
 
       def store_phrase(repo_name, phrase)
-        phrase = phrase_model.where(
-          repo_name: repo_name,
-          key: phrase.key,
-          meta_key: phrase.meta_key,
-          file: phrase.file,
-          commit_id: phrase.commit_id
-        ).first_or_initialize
-        phrase.save
+        with_connection do
+          phrase = phrase_model.where(
+            repo_name: repo_name,
+            key: phrase.key,
+            meta_key: phrase.meta_key,
+            file: phrase.file,
+            commit_id: phrase.commit_id
+          ).first_or_initialize
+          phrase.save
+        end
       end
 
       def phrases_by_commit(repo_name, commit_id, file = nil)
         # Rather than create a bunch of Rosette::Core::Phrases, just return
         # the ActiveRecord objects, which respond to the same methods.
-        params = { repo_name: repo_name, commit_id: commit_id }
-        params[:file] = file if file
-        phrase_model.where(params).to_a
+        with_connection do
+          params = { repo_name: repo_name, commit_id: commit_id }
+          params[:file] = file if file
+          phrase_model.where(params).to_a
+        end
       end
 
       # commit_id_map is a hash of commit_ids to file paths
       def phrases_by_commits(repo_name, commit_id_map)
-        if block_given?
-          if commit_id_map.is_a?(Array)
-            query = phrase_model.where(repo_name: repo_name).where(
-              phrases_by_commit_arr(commit_id_map)
-            )
+        with_connection do
+          if block_given?
+            if commit_id_map.is_a?(Array)
+              query = phrase_model.where(repo_name: repo_name).where(
+                phrases_by_commit_arr(commit_id_map)
+              )
 
-            query.each { |phrase| yield phrase }
-          else
-            each_phrase_condition_slice(commit_id_map).flat_map do |conditions|
-              phrase_model.where(repo_name: repo_name).where(conditions).each do |phrase|
-                yield phrase
+              query.each { |phrase| yield phrase }
+            else
+              each_phrase_condition_slice(commit_id_map).flat_map do |conditions|
+                phrase_model.where(repo_name: repo_name).where(conditions).each do |phrase|
+                  yield phrase
+                end
               end
             end
+          else
+            to_enum(__method__, repo_name, commit_id_map)
           end
-        else
-          to_enum(__method__, repo_name, commit_id_map)
         end
       end
 
       def translations_by_commits(repo_name, locale, commit_id_map)
-        if block_given?
-          each_phrase_condition_slice(commit_id_map) do |conditions|
-            trans = trans_model
-              .where(
-                trans_model[:phrase_id].in(
-                  phrase_model
-                    .select(:id)
-                    .where(repo_name: repo_name)
-                    .where(conditions)
-                    .ast
+        with_connection do
+          if block_given?
+            each_phrase_condition_slice(commit_id_map) do |conditions|
+              trans = trans_model
+                .where(
+                  trans_model[:phrase_id].in(
+                    phrase_model
+                      .select(:id)
+                      .where(repo_name: repo_name)
+                      .where(conditions)
+                      .ast
+                  )
                 )
-              )
-              .where(locale: locale)
-              # .order(:updated_at)  # why are these here?
-              # .reverse_order
+                .where(locale: locale)
+                # .order(:updated_at)  # why are these here?
+                # .reverse_order
 
-            trans.each { |t| yield t }
+              trans.each { |t| yield t }
+            end
+          else
+            to_enum(__method__, repo_name, commit_id_map)
           end
-        else
-          to_enum(__method__, repo_name, commit_id_map)
         end
       end
 
       def lookup_phrase(repo_name, key, meta_key, commit_id)
-        phrase_model.lookup(key, meta_key)
-          .where(commit_id: commit_id)
-          .where(repo_name: repo_name)
-          .first
+        with_connection do
+          phrase_model.lookup(key, meta_key)
+            .where(commit_id: commit_id)
+            .where(repo_name: repo_name)
+            .first
+        end
       end
 
       # params must include key or meta_key, commit_id, translation, and locale
       def add_or_update_translation(repo_name, params = {})
-        required_params = [
-          phrase_model.index_key(params[:key], params[:meta_key]),
-          :commit_id, :translation, :locale
-        ]
+        with_connection do
+          required_params = [
+            phrase_model.index_key(params[:key], params[:meta_key]),
+            :commit_id, :translation, :locale
+          ]
 
-        missing_params = required_params - params.keys
+          missing_params = required_params - params.keys
 
-        if missing_params.size > 0
-          raise Rosette::DataStores::Errors::MissingParamError,
-            "missing params: #{missing_params.join(', ')}"
-        end
-
-        phrase = lookup_phrase(
-          repo_name, params[:key], params[:meta_key], params[:commit_id]
-        )
-
-        if phrase
-          params = trans_model
-            .extract_params_from(params)
-            .merge(phrase_id: phrase.id)
-
-          find_params = params.dup
-          find_params.delete(:translation)  # may have changed
-
-          trans = trans_model.where(find_params)
-          trans << trans_model.new if trans.size == 0
-
-          trans.each do |t|
-            t.assign_attributes(params)
-
-            unless t.save
-              raise(
-                Rosette::DataStores::Errors::AddTranslationError,
-                t.errors.full_messages.join(', ')
-              )
-            end
+          if missing_params.size > 0
+            raise Rosette::DataStores::Errors::MissingParamError,
+              "missing params: #{missing_params.join(', ')}"
           end
-        else
-          raise(
-            Rosette::DataStores::Errors::PhraseNotFoundError,
-            "couldn't find phrase identified by key '#{params[:key]}' and meta key '#{params[:meta_key]}'"
+
+          phrase = lookup_phrase(
+            repo_name, params[:key], params[:meta_key], params[:commit_id]
           )
+
+          if phrase
+            params = trans_model
+              .extract_params_from(params)
+              .merge(phrase_id: phrase.id)
+
+            find_params = params.dup
+            find_params.delete(:translation)  # may have changed
+
+            trans = trans_model.where(find_params)
+            trans << trans_model.new if trans.size == 0
+
+            trans.each do |t|
+              t.assign_attributes(params)
+
+              unless t.save
+                raise(
+                  Rosette::DataStores::Errors::AddTranslationError,
+                  t.errors.full_messages.join(', ')
+                )
+              end
+            end
+          else
+            raise(
+              Rosette::DataStores::Errors::PhraseNotFoundError,
+              "couldn't find phrase identified by key '#{params[:key]}' and meta key '#{params[:meta_key]}'"
+            )
+          end
         end
       end
 
       def each_unique_commit(repo_name)
-        if block_given?
-          # ActiveRecord's find_in_batches will occasionally yield a commit_id we've
-          # already seen because there are numerous entries with the same commit_id.
-          # They overlap when queried in batches.
-          seen_ids = Set.new
-          query = phrase_model.select([:commit_id, :id])
-            .where(repo_name: repo_name)
-            .group(:commit_id)
+        with_connection do
+          if block_given?
+            # ActiveRecord's find_in_batches will occasionally yield a commit_id we've
+            # already seen because there are numerous entries with the same commit_id.
+            # They overlap when queried in batches.
+            seen_ids = Set.new
+            query = phrase_model.select([:commit_id, :id])
+              .where(repo_name: repo_name)
+              .group(:commit_id)
 
-          query.find_in_batches(batch_size: CHUNK_SIZE) do |batch|
-            batch.each do |entry|
-              unless seen_ids.include?(entry.commit_id)
-                yield entry.commit_id
+            query.find_in_batches(batch_size: CHUNK_SIZE) do |batch|
+              batch.each do |entry|
+                unless seen_ids.include?(entry.commit_id)
+                  yield entry.commit_id
+                end
+
+                seen_ids << entry.commit_id
               end
-
-              seen_ids << entry.commit_id
             end
+          else
+            to_enum(__method__, repo_name)
           end
-        else
-          to_enum(__method__, repo_name)
         end
       end
 
       def unique_commit_count(repo_name)
-        count = Arel::Nodes::NamedFunction.new(
-          'COUNT', [Arel::Nodes::NamedFunction.new(
-              'DISTINCT', [phrase_model[:commit_id]]
-            )
-          ]
-        )
+        with_connection do
+          count = Arel::Nodes::NamedFunction.new(
+            'COUNT', [Arel::Nodes::NamedFunction.new(
+                'DISTINCT', [phrase_model[:commit_id]]
+              )
+            ]
+          )
 
-        phrase_model
-          .select(count.as('commit_count'))
-          .where(repo_name: repo_name)
-          .first
-          .attributes['commit_count']
+          phrase_model
+            .select(count.as('commit_count'))
+            .where(repo_name: repo_name)
+            .first
+            .attributes['commit_count']
+          end
       end
 
       def add_or_update_commit_log(repo_name, commit_id, status = Rosette::DataStores::PhraseStatus::UNTRANSLATED, phrase_count = nil)
-        log_entry = commit_log_model
-          .where(repo_name: repo_name, commit_id: commit_id)
-          .first_or_initialize
+        with_connection do
+          log_entry = commit_log_model
+            .where(repo_name: repo_name, commit_id: commit_id)
+            .first_or_initialize
 
-        log_entry.assign_attributes(status: status)
-        log_entry.assign_attributes(phrase_count: phrase_count) if phrase_count
+          log_entry.assign_attributes(status: status)
+          log_entry.assign_attributes(phrase_count: phrase_count) if phrase_count
 
-        unless log_entry.save
-          raise Rosette::DataStores::Errors::CommitLogUpdateError,
-            "Unable to update commit #{commit_id}: #{log_entry.errors.full_messages.first}"
+          unless log_entry.save
+            raise Rosette::DataStores::Errors::CommitLogUpdateError,
+              "Unable to update commit #{commit_id}: #{log_entry.errors.full_messages.first}"
+          end
         end
       end
 
       def seen_commits_in(repo_name, commit_id_list)
-        commit_log_model
-          .where(repo_name: repo_name)
-          .where(commit_id: commit_id_list)
-          .pluck(:commit_id)
+        with_connection do
+          commit_log_model
+            .where(repo_name: repo_name)
+            .where(commit_id: commit_id_list)
+            .pluck(:commit_id)
+          end
       end
 
       def add_or_update_commit_log_locale(commit_id, locale, translated_count)
-        commit_log_locale_entry = commit_log_locale_model
-          .where(commit_id: commit_id)
-          .where(locale: locale)
-          .first_or_initialize
+        with_connection do
+          commit_log_locale_entry = commit_log_locale_model
+            .where(commit_id: commit_id)
+            .where(locale: locale)
+            .first_or_initialize
 
-        commit_log_locale_entry.assign_attributes(translated_count: translated_count)
+          commit_log_locale_entry.assign_attributes(translated_count: translated_count)
 
-        unless commit_log_locale_entry.save
-          raise Rosette::DataStores::Errors::CommitLogLocaleUpdateError,
-            "Unable to update commit log locale #{commit_id} #{locale}: #{commit_log_locale_entry.errors.full_messages.first}"
+          unless commit_log_locale_entry.save
+            raise Rosette::DataStores::Errors::CommitLogLocaleUpdateError,
+              "Unable to update commit log locale #{commit_id} #{locale}: #{commit_log_locale_entry.errors.full_messages.first}"
+          end
         end
       end
 
       private
+
+      def with_connection(&block)
+        ActiveRecord::Base.connection_pool.with_connection(&block)
+      end
 
       def phrases_by_commit_arr(arr)
         phrase_model[:commit_id].in(commit_id_map.keys)
