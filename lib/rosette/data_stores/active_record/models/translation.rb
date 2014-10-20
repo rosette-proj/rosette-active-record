@@ -6,6 +6,7 @@ module Rosette
 
       class Translation < ActiveRecord::Base
         extend ExtractParams
+        include Rosette::Core::TranslationToHash
 
         validates :translation, presence: true
         validates :phrase_id, presence: true
@@ -19,6 +20,7 @@ module Rosette
         end
 
         def self.from_h(hash)
+          hash[:phrase] = Phrase.new(hash[:phrase])
           new(hash)
         end
       end
