@@ -26,6 +26,10 @@ module Rosette
           ivalue = index_value(key, meta_key)
           where(ikey => ivalue)
         end
+
+        def self.from_h(hash)
+          new(hash)
+        end
       end
     end
 

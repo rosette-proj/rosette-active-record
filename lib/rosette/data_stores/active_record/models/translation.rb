@@ -17,6 +17,10 @@ module Rosette
         def self.[](column)
           arel_table[column]
         end
+
+        def self.from_h(hash)
+          new(hash)
+        end
       end
 
     end
