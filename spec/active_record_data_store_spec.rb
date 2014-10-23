@@ -302,4 +302,15 @@ describe ActiveRecordDataStore do
       expect(seen_commits.first).to eq(commits.first.commit_id)
     end
   end
+
+  describe '#commit_log_exists?' do
+    it "returns false if the commit log doesn't exist" do
+      expect(datastore.commit_log_exists?(repo_name, 'abc123')).to be(false)
+    end
+
+    it 'returns true if the commit log exists' do
+      log_entry = create(:commit_log)
+      expect(datastore.commit_log_exists?(repo_name, log_entry.commit_id)).to be(true)
+    end
+  end
 end

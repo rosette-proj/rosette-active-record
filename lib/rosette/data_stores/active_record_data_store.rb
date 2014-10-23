@@ -212,6 +212,12 @@ module Rosette
         end
       end
 
+      def commit_log_exists?(repo_name, commit_id)
+        with_connection do
+          commit_log_model.where(repo_name: repo_name, commit_id: commit_id).exists?
+        end
+      end
+
       def seen_commits_in(repo_name, commit_id_list)
         with_connection do
           commit_log_model
