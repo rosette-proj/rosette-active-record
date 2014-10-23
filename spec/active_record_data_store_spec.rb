@@ -269,7 +269,7 @@ describe ActiveRecordDataStore do
         CommitLog.first.tap do |log_entry|
           expect(log_entry.repo_name).to eq(repo_name)
           expect(log_entry.commit_id).to eq (commit_id)
-          expect(log_entry.status).to eq(CommitLog::UNTRANSLATED)
+          expect(log_entry.status).to eq(PhraseStatus::UNTRANSLATED)
         end
       end
     end
@@ -278,13 +278,14 @@ describe ActiveRecordDataStore do
       it 'updates the commit status' do
         create(:commit_log, commit_id: commit_id)
 
-        expect { datastore.add_or_update_commit_log(repo_name, commit_id, CommitLog::PENDING) }
-          .to_not change { CommitLog.count }
+        expect do
+          datastore.add_or_update_commit_log(repo_name, commit_id, PhraseStatus::PENDING)
+        end.to_not change { CommitLog.count }
 
         CommitLog.first.tap do |log_entry|
           expect(log_entry.repo_name).to eq(repo_name)
           expect(log_entry.commit_id).to eq(commit_id)
-          expect(log_entry.status).to eq(CommitLog::PENDING)
+          expect(log_entry.status).to eq(PhraseStatus::PENDING)
         end
       end
     end
