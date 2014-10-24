@@ -243,7 +243,45 @@ module Rosette
         end
       end
 
+      def commit_log_status(repo_name, commit_id)
+        with_connection do
+          log_entry = commit_log_model
+            .where(repo_name: repo_name, commit_id: commit_id)
+            .includes(:commit_log_locales)
+            .first
+
+          if log_entry
+            phrase_count = log_entry.phrase_count.to_i
+
+            locales = log_entry.commit_log_locales.map do |log_locale|
+              translated_count = log_locale[:translated_count].to_i
+
+              {
+                locale: log_locale[:locale],
+                percent_translated: percentage(translated_count, phrase_count),
+                translated_count: translated_count,
+              }
+            end
+
+            {
+              commit_id: commit_id,
+              status: log_entry.status,
+              phrase_count: phrase_count,
+              locales: locales
+            }
+          end
+        end
+      end
+
       private
+
+      def percentage(dividend, divisor)
+        if divisor > 0
+          (dividend.to_f / divisor.to_f).round(2)
+        else
+          0.0
+        end
+      end
 
       def with_connection(&block)
         ActiveRecord::Base.connection_pool.with_connection(&block)
