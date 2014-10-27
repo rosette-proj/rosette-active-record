@@ -30,7 +30,9 @@ module Rosette
             key: phrase.key,
             meta_key: phrase.meta_key,
             file: phrase.file,
-            commit_id: phrase.commit_id
+            commit_id: phrase.commit_id,
+            author_name: phrase.author_name,
+            author_email: phrase.author_email
           ).first_or_initialize
           phrase.save
         end
