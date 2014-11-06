@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
 
   s.description = s.summary = "ActiveRecord datastore for Rosette (specifically rosette-server), the internationalization platform."
 
-  s.add_dependency 'activerecord', '~> 4.1.0'
+  s.add_dependency 'activerecord', '~> 3.2.0'
 
   s.platform = Gem::Platform::RUBY
   s.has_rdoc = true
