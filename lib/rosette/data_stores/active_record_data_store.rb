@@ -32,8 +32,7 @@ module Rosette
             file: phrase.file,
             commit_id: phrase.commit_id,
             author_name: phrase.author_name,
-            author_email: phrase.author_email,
-            commit_datetime: phrase.commit_datetime
+            author_email: phrase.author_email
           ).first_or_initialize
           phrase.save
         end
@@ -199,13 +198,14 @@ module Rosette
           end
       end
 
-      def add_or_update_commit_log(repo_name, commit_id, status = Rosette::DataStores::PhraseStatus::UNTRANSLATED, phrase_count = nil)
+      def add_or_update_commit_log(repo_name, commit_id, commit_datetime = nil, status = Rosette::DataStores::PhraseStatus::UNTRANSLATED, phrase_count = nil)
         with_connection do
           log_entry = commit_log_model
             .where(repo_name: repo_name, commit_id: commit_id)
             .first_or_initialize
 
           log_entry.assign_attributes(status: status)
+          log_entry.assign_attributes(commit_datetime: commit_datetime) if commit_datetime
           log_entry.assign_attributes(phrase_count: phrase_count) if phrase_count
 
           unless log_entry.save
