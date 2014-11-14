@@ -32,7 +32,8 @@ module Rosette
             file: phrase.file,
             commit_id: phrase.commit_id,
             author_name: phrase.author_name,
-            author_email: phrase.author_email
+            author_email: phrase.author_email,
+            commit_datetime: phrase.commit_datetime
           ).first_or_initialize
           phrase.save
         end

@@ -1,6 +1,6 @@
 # encoding: UTF-8
 
-require 'active_record/migration'
+require 'active_record'
 
 module Rosette
   module DataStores
