@@ -299,12 +299,12 @@ module Rosette
       def each_phrase_condition_slice(commit_id_map)
         if block_given?
           each_phrase_slice(commit_id_map, CHUNK_SIZE) do |slice|
-            conditions = slice.inject(nil) do |rel, (file, commit_id)|
+            conditions = slice.map do |file, commit_id|
               pair = phrase_model[:file].eq(file).and(phrase_model[:commit_id].eq(commit_id))
-              rel ? rel.or(pair) : pair
+              "(#{pair.to_sql})"
             end
 
-            yield conditions
+            yield conditions.join(' OR ')
           end
         else
           to_enum(__method__, commit_id_map)
