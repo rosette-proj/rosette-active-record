@@ -11,7 +11,7 @@ module Rosette
   module DataStores
 
     class ActiveRecordDataStore
-      CHUNK_SIZE = 20
+      CHUNK_SIZE = 100
 
       def initialize(connection_options = {})
         if connection_options
