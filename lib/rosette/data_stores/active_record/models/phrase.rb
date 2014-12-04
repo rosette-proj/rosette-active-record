@@ -10,7 +10,7 @@ module Rosette
         include Rosette::Core::PhraseToHash
 
         validates :repo_name, presence: true
-        validates :key, presence: true, allow_blank: true
+        validates :key, length: { in: 0..Float::INFINITY, allow_nil: false }
         validates :file, presence: true
         validates :commit_id, presence: true
 
