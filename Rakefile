@@ -4,6 +4,7 @@ require 'rubygems' unless ENV['NO_RUBYGEMS']
 
 require 'bundler'
 require 'yaml'
+require 'erb'
 require 'rspec/core/rake_task'
 require 'rubygems/package_task'
 
@@ -21,8 +22,12 @@ end
 
 namespace :db do
   ActiveRecord::Base.establish_connection(
-    YAML.load_file(
-      File.expand_path('spec/database.yml', File.dirname(__FILE__))
+    YAML.load(
+      ERB.new(
+        File.read(
+          File.expand_path('spec/database.yml', File.dirname(__FILE__))
+        )
+      ).result
     )
   )
 

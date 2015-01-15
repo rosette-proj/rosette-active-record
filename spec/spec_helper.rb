@@ -2,6 +2,7 @@
 
 require 'pry-nav'
 
+require 'erb'
 require 'rspec'
 require 'factory_girl'
 require 'rosette/data_stores/active_record_data_store'
@@ -24,8 +25,12 @@ RSpec.configure do |config|
   Dir.glob("#{factory_path}/*.rb").each { |f| require f }
 
   ActiveRecord::Base.establish_connection(
-    YAML.load_file(
-      File.expand_path('database.yml', File.dirname(__FILE__))
+    YAML.load(
+      ERB.new(
+        File.read(
+          File.expand_path('database.yml', File.dirname(__FILE__))
+        )
+      ).result
     )
   )
 

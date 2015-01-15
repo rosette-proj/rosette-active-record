@@ -2,7 +2,7 @@ host: localhost
 adapter: 'mysql2'
 database: 'rosette_test'
 port: 3306
-username: rosette
-password: rosette-dev
+username: <%= ENV['TEST_DB_USER'] || 'rosette' %>
+password: <%= ENV['TEST_DB_PASSWORD'] || 'rosette-dev' %>
 encoding: 'utf8'
 pool: 16
