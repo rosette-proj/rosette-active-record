@@ -107,7 +107,8 @@ module Rosette
         end
       end
 
-      # params must include key or meta_key, commit_id, translation, and locale
+      # Params must include key or meta_key, commit_id, translation, and locale.
+      # commit_id can be an array of commit ids.
       def add_or_update_translation(repo_name, params = {})
         with_connection do
           required_params = [
@@ -274,6 +275,15 @@ module Rosette
               locales: locales
             }
           end
+        end
+      end
+
+      def file_list_for_repo(repo_name)
+        with_connection do
+          Phrase
+            .where(repo_name: repo_name)
+            .uniq
+            .pluck(:file)
         end
       end
 
