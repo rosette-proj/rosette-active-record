@@ -291,6 +291,17 @@ describe ActiveRecordDataStore do
     end
   end
 
+  describe '#commit_log_exists?' do
+    it "returns false if the commit log doesn't exist" do
+      expect(datastore.commit_log_exists?(repo_name, 'abc123')).to be(false)
+    end
+
+    it 'returns true if the commit log exists' do
+      log_entry = create(:commit_log)
+      expect(datastore.commit_log_exists?(repo_name, log_entry.commit_id)).to be(true)
+    end
+  end
+
   describe '#seen_commits_in' do
     it 'returns the commits in the list that are also in the commit log' do
       commits = create_list(:commit_log, 2)
@@ -303,14 +314,84 @@ describe ActiveRecordDataStore do
     end
   end
 
-  describe '#commit_log_exists?' do
-    it "returns false if the commit log doesn't exist" do
-      expect(datastore.commit_log_exists?(repo_name, 'abc123')).to be(false)
+  describe '#add_or_update_commit_log_locale' do
+    let(:commit_id) { 'beef123' }
+    let(:locale) { 'es' }
+    let(:translated_count) { 1000 }
+
+    context 'the locale for the commit has not been logged yet' do
+      it 'creates a commit log locale entry' do
+        expect do
+          datastore.add_or_update_commit_log_locale(commit_id, locale, translated_count)
+        end.to change { CommitLogLocale.count }.by(1)
+
+        CommitLogLocale.first.tap do |log_locale_entry|
+          expect(log_locale_entry.commit_id).to eq(commit_id)
+          expect(log_locale_entry.locale).to eq(locale)
+          expect(log_locale_entry.translated_count).to eq(translated_count)
+        end
+      end
     end
 
-    it 'returns true if the commit log exists' do
-      log_entry = create(:commit_log)
-      expect(datastore.commit_log_exists?(repo_name, log_entry.commit_id)).to be(true)
+    context 'the locale for the commit has already been logged' do
+      it 'updates the commit log locale' do
+        create(:commit_log_locale, locale: locale, translated_count: translated_count, commit_id: commit_id)
+
+        expect do
+          datastore.add_or_update_commit_log_locale(commit_id, locale, translated_count)
+        end.to_not change { CommitLogLocale.count }
+
+        CommitLogLocale.first.tap do |log_locale_entry|
+          expect(log_locale_entry.commit_id).to eq(commit_id)
+          expect(log_locale_entry.locale).to eq(locale)
+          expect(log_locale_entry.translated_count).to eq(translated_count)
+        end
+      end
     end
   end
+
+  describe '#commit_log_status' do
+    let(:commit_id) { '43210' }
+    let(:phrase_count) { 999 }
+    let(:translated_count) { 333 }
+
+    it 'returns the status of a commit from a repo' do
+      commit_log = create(:commit_log, repo_name: repo_name, commit_id: commit_id, phrase_count: phrase_count)
+      commit_log_locales = create_list(:commit_log_locale, 5, commit_log: commit_log, translated_count: translated_count)
+
+      locales = commit_log_locales.map(&:locale)
+
+      datastore.commit_log_status(repo_name, commit_id).tap do |status|
+        expect(status[:commit_id]).to eq(commit_id)
+        expect(status[:status]).to eq(PhraseStatus::UNTRANSLATED)
+        expect(status[:phrase_count]).to eq(phrase_count)
+        locales_hash = locales.map do |locale|
+          {}.tap do |h|
+            h[:locale] = locale
+            h[:percent_translated] = (translated_count.to_f / phrase_count).round(2)
+            h[:translated_count] = translated_count
+          end
+        end
+        expect(sort_by_locale(status[:locales])).to eq(sort_by_locale(locales_hash))
+      end
+
+    end
+  end
+
+  describe '#file_list_for_repo' do
+    let(:first_file_name) { 'cool_file.txt' }
+    let(:second_file_name) { 'a_cooler_file.txt' }
+
+    it 'returns the list of files for a repo' do
+      create_list(:phrase, 5, repo_name: repo_name, file: first_file_name)
+      create_list(:phrase, 5, repo_name: repo_name, file: second_file_name)
+
+      expect(datastore.file_list_for_repo(repo_name).sort).to eq([first_file_name, second_file_name].sort)
+    end
+  end
+
+  def sort_by_locale(locales_hash)
+    locales_hash.sort { |a,b| a[:locale] <=> b[:locale] }
+  end
+
 end
