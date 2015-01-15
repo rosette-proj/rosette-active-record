@@ -17,6 +17,8 @@ module Rosette
             unless migrations_table_exists?
               create_migrations_table
             end
+
+            migrate
           end
 
           def migrate
