@@ -1,0 +1,9 @@
+language: ruby
+rvm:
+  - jruby-1.7.15
+env:
+  - JRUBY_OPTS="--2.0" TEST_DB_USER=travis TEST_DB_PASSWORD=""
+before_script:
+  - mysql -e 'create database rosette_test;'
+  - bundle exec rake db:setup
+script: 'bundle exec rspec'
