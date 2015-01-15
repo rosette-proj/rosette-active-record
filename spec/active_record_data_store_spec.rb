@@ -279,7 +279,7 @@ describe ActiveRecordDataStore do
         create(:commit_log, commit_id: commit_id)
 
         expect do
-          datastore.add_or_update_commit_log(repo_name, commit_id, PhraseStatus::PENDING)
+          datastore.add_or_update_commit_log(repo_name, commit_id, nil, PhraseStatus::PENDING)
         end.to_not change { CommitLog.count }
 
         CommitLog.first.tap do |log_entry|
