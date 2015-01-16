@@ -8,7 +8,7 @@ module Rosette
         extend ExtractParams
         include Rosette::Core::TranslationToHash
 
-        validates :translation, length: { minimum: 0 }, presence: true
+        validate  :validate_translation_presence
         validates :phrase_id, presence: true
         validates :locale, presence: true
 
@@ -22,6 +22,14 @@ module Rosette
         def self.from_h(hash)
           hash[:phrase] = Phrase.new(hash[:phrase])
           new(hash)
+        end
+
+        private
+
+        def validate_translation_presence
+          if translation.nil?
+            errors.add(:translation, "can't be nil")
+          end
         end
       end
 

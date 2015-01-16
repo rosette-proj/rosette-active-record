@@ -10,7 +10,7 @@ module Rosette
         include Rosette::Core::PhraseToHash
 
         validates :repo_name, presence: true
-        validates :key, length: { minimum: 0 }, presence: true
+        validate  :validate_key_presence
         validates :file, presence: true
         validates :commit_id, presence: true
 
@@ -29,6 +29,14 @@ module Rosette
 
         def self.from_h(hash)
           new(hash)
+        end
+
+        private
+
+        def validate_key_presence
+          if key.nil?
+            errors.add(:key, "can't be nil")
+          end
         end
       end
     end

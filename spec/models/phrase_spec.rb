@@ -12,7 +12,9 @@ describe ActiveRecordDataStore::Phrase do
 
         it 'fails validation' do
           expect(phrase.save).to eq(false)
-          expect(phrase.errors[required_field]).to include("can't be blank")
+          has_blank = phrase.errors[required_field].include?("can't be blank")
+          has_nil = phrase.errors[required_field].include?("can't be nil")
+          expect(has_blank || has_nil).to be_truthy
         end
       end
     end
