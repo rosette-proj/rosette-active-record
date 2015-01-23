@@ -138,8 +138,14 @@ module Rosette
             trans = trans_model.where(find_params)
             trans << trans_model.new if trans.size == 0
 
-            trans.each do |t|
+            trans.map do |t|
               t.assign_attributes(params)
+
+              status = if t.new_record?
+                :created
+              else
+                t.changed? ? :changed : :unchanged
+              end
 
               unless t.save
                 raise(
@@ -147,6 +153,8 @@ module Rosette
                   t.errors.full_messages.join(', ')
                 )
               end
+
+              { status: status, translation: t }
             end
           else
             raise(

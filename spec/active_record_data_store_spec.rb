@@ -186,7 +186,14 @@ describe ActiveRecordDataStore do
         locale: translation.locale
       }
 
-      datastore.add_or_update_translation(repo_name, params)
+      datastore.add_or_update_translation(repo_name, params).tap do |translation_statuses|
+        expect(translation_statuses.size).to eq(1)
+        translation_statuses.first.tap do |translation_status|
+          expect(translation_status[:status]).to eq(:changed)
+          expect(translation_status[:translation].id).to eq(translation.id)
+        end
+      end
+
       expect(translation.reload.translation).to eq(new_translation_text)
     end
 
@@ -205,7 +212,20 @@ describe ActiveRecordDataStore do
         locale: translation.locale
       }
 
-      datastore.add_or_update_translation(repo_name, params)
+      datastore.add_or_update_translation(repo_name, params).tap do |translation_statuses|
+        expect(translation_statuses.size).to eq(2)
+
+        translation_statuses.first.tap do |translation_status|
+          expect(translation_status[:status]).to eq(:changed)
+          expect(translation_status[:translation].id).to eq(translation.id)
+        end
+
+        translation_statuses.last.tap do |translation_status|
+          expect(translation_status[:status]).to eq(:changed)
+          expect(translation_status[:translation].id).to eq(other_translation.id)
+        end
+      end
+
       expect(translation.reload.translation).to eq(new_translation_text)
       expect(other_translation.reload.translation).to eq(new_translation_text)
     end
@@ -221,14 +241,41 @@ describe ActiveRecordDataStore do
         locale: 'es'
       }
 
-      expect(Translation.count).to eq(0)
-      datastore.add_or_update_translation(repo_name, params)
-      expect(Translation.count).to eq(1)
+      translation_statuses = nil
 
-      Translation.first.tap do |trans|
-        expect(trans.phrase_id).to eq(phrase.id)
-        expect(trans.translation).to eq(new_translation_text)
-        expect(trans.locale).to eq('es')
+      expect do
+        translation_statuses = datastore.add_or_update_translation(
+          repo_name, params
+        )
+      end.to change { Translation.count }.by(1)
+
+      first_trans = Translation.first
+      expect(translation_statuses.size).to eq(1)
+      expect(translation_statuses.first[:status]).to eq(:created)
+      expect(translation_statuses.first[:translation].id).to eq(first_trans.id)
+
+      expect(first_trans.phrase_id).to eq(phrase.id)
+      expect(first_trans.translation).to eq(new_translation_text)
+      expect(first_trans.locale).to eq('es')
+    end
+
+    it "doesn't update any translations" do
+      translation = create(:translation)
+      phrase = translation.phrase
+
+      params = {
+        key: phrase.key,
+        commit_id: phrase.commit_id,
+        translation: translation.translation,
+        locale: translation.locale
+      }
+
+      datastore.add_or_update_translation(repo_name, params).tap do |translation_statuses|
+        expect(translation_statuses.size).to eq(1)
+        translation_statuses.first.tap do |translation_status|
+          expect(translation_status[:status]).to eq(:unchanged)
+          expect(translation_status[:translation].id).to eq(translation.id)
+        end
       end
     end
   end
