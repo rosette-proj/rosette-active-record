@@ -350,6 +350,15 @@ describe ActiveRecordDataStore do
     end
   end
 
+  describe '#pending_commit_log_count' do
+    it 'returns the count of pending commit logs' do
+      create(:commit_log, status: PhraseStatus::UNTRANSLATED)
+      create(:commit_log, status: PhraseStatus::PENDING)
+
+      expect(datastore.pending_commit_log_count).to eq(1)
+    end
+  end
+
   describe '#commit_log_exists?' do
     it "returns false if the commit log doesn't exist" do
       expect(datastore.commit_log_exists?(repo_name, 'abc123')).to be(false)

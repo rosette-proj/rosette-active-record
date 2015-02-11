@@ -228,11 +228,17 @@ module Rosette
       def each_pending_commit_log(repo_name, &blk)
         if block_given?
           with_connection do
-            commit_log_model.where(status: Rosette::DataStores::PhraseStatus::PENDING)
+            commit_log_model.where(status: Rosette::DataStores::PhraseStatus::PENDING, repo_name: repo_name)
               .find_each(batch_size: CHUNK_SIZE, &blk)
           end
         else
           to_enum(__method__, repo_name)
+        end
+      end
+
+      def pending_commit_log_count(repo_name)
+        with_connection do
+          commit_log_model.where(status: Rosette::DataStores::PhraseStatus::PENDING, repo_name: repo_name).count
         end
       end
 
