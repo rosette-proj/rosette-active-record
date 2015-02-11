@@ -355,7 +355,7 @@ describe ActiveRecordDataStore do
       create(:commit_log, status: PhraseStatus::UNTRANSLATED)
       create(:commit_log, status: PhraseStatus::PENDING)
 
-      expect(datastore.pending_commit_log_count).to eq(1)
+      expect(datastore.pending_commit_log_count(repo_name)).to eq(1)
     end
   end
 
