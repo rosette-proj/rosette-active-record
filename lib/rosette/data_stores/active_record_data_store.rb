@@ -225,6 +225,17 @@ module Rosette
         end
       end
 
+      def each_pending_commit_log(repo_name, &blk)
+        if block_given?
+          with_connection do
+            commit_log_model.where(status: Rosette::DataStores::PhraseStatus::PENDING)
+              .find_each(batch_size: CHUNK_SIZE, &blk)
+          end
+        else
+          to_enum(__method__, repo_name)
+        end
+      end
+
       def commit_log_exists?(repo_name, commit_id)
         with_connection do
           commit_log_model.where(repo_name: repo_name, commit_id: commit_id).exists?
