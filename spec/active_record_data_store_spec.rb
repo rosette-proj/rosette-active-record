@@ -338,24 +338,30 @@ describe ActiveRecordDataStore do
     end
   end
 
-  describe '#each_pending_commit_log' do
+  describe '#each_commit_log_with_status' do
     it 'yields all pending commit logs' do
       create(:commit_log, status: PhraseStatus::UNTRANSLATED)
       pending_commit_log = create(:commit_log, status: PhraseStatus::PENDING)
 
-      commit_logs = datastore.each_pending_commit_log(repo_name).to_a
+      commit_logs = datastore.each_commit_log_with_status(
+        repo_name, Rosette::DataStores::PhraseStatus::PENDING
+      ).to_a
 
       expect(commit_logs.size).to eq(1)
       expect(commit_logs.first.commit_id).to eq(pending_commit_log.commit_id)
     end
   end
 
-  describe '#pending_commit_log_count' do
+  describe '#commit_log_with_status_count' do
     it 'returns the count of pending commit logs' do
       create(:commit_log, status: PhraseStatus::UNTRANSLATED)
       create(:commit_log, status: PhraseStatus::PENDING)
 
-      expect(datastore.pending_commit_log_count(repo_name)).to eq(1)
+      expect(
+        datastore.commit_log_with_status_count(
+          repo_name, Rosette::DataStores::PhraseStatus::PENDING
+        )
+      ).to eq(1)
     end
   end
 
