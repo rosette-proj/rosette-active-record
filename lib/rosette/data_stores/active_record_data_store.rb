@@ -225,6 +225,23 @@ module Rosette
         end
       end
 
+      def each_commit_log_with_status(repo_name, status, &blk)
+        if block_given?
+          with_connection do
+            commit_log_model.where(status: status, repo_name: repo_name)
+              .find_each(batch_size: CHUNK_SIZE, &blk)
+          end
+        else
+          to_enum(__method__, repo_name, status)
+        end
+      end
+
+      def commit_log_with_status_count(repo_name, status)
+        with_connection do
+          commit_log_model.where(status: status, repo_name: repo_name).count
+        end
+      end
+
       def commit_log_exists?(repo_name, commit_id)
         with_connection do
           commit_log_model.where(repo_name: repo_name, commit_id: commit_id).exists?
