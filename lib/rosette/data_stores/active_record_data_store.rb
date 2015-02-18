@@ -191,6 +191,26 @@ module Rosette
         end
       end
 
+      def each_unique_meta_key(repo_name)
+        with_connection do
+          if block_given?
+            query = phrase_model
+              .select(
+                Arel::Nodes::NamedFunction.new(
+                  'DISTINCT', [phrase_model[:meta_key]]
+                )
+              )
+              .where(repo_name: repo_name)
+
+            query.find_in_batches(batch_size: CHUNK_SIZE) do |phrase|
+              yield phrase.meta_key
+            end
+          else
+            to_enum(__method__, repo_name)
+          end
+        end
+      end
+
       def unique_commit_count(repo_name)
         with_connection do
           count = Arel::Nodes::NamedFunction.new(
