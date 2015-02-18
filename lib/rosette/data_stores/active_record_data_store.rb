@@ -195,15 +195,11 @@ module Rosette
         with_connection do
           if block_given?
             query = phrase_model
-              .select(
-                Arel::Nodes::NamedFunction.new(
-                  'DISTINCT', [phrase_model[:meta_key]]
-                )
-              )
               .where(repo_name: repo_name)
+              .group(:meta_key)
 
             query.find_in_batches(batch_size: CHUNK_SIZE) do |phrase|
-              yield phrase.meta_key
+              yield phrase
             end
           else
             to_enum(__method__, repo_name)
