@@ -191,6 +191,38 @@ module Rosette
         end
       end
 
+      def each_unique_meta_key(repo_name)
+        with_connection do
+          if block_given?
+            query = phrase_model
+              .select([:id, :meta_key])
+              .where(repo_name: repo_name)
+              .group(:meta_key)
+              .pluck(:meta_key)
+              .each { |mk| yield mk }
+          else
+            to_enum(__method__, repo_name)
+          end
+        end
+      end
+
+      def most_recent_key_for_meta_key(repo_name, meta_key)
+        with_connection do
+          phrase_model
+            .select(phrase_model.arel_table[:key])
+            .joins(
+              phrase_model.arel_table.join(commit_log_model.arel_table).on(
+                phrase_model.arel_table[:commit_id].eq(commit_log_model.arel_table[:commit_id])
+              ).join_sources
+            )
+            .where(repo_name: repo_name, meta_key: meta_key)
+            .order(:commit_datetime)
+            .reverse_order
+            .first
+            .key
+        end
+      end
+
       def unique_commit_count(repo_name)
         with_connection do
           count = Arel::Nodes::NamedFunction.new(

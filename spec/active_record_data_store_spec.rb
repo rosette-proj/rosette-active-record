@@ -294,6 +294,36 @@ describe ActiveRecordDataStore do
     end
   end
 
+  describe '#each_unique_meta_key' do
+    it 'yields once for each unique meta key for the given repo' do
+      phrases = create_list(:phrase, 3, :with_meta_key)
+      dup_phrase = create(:phrase, meta_key: phrases.first.meta_key)
+
+      datastore.each_unique_meta_key(repo_name).to_a.tap do |phrases|
+        expect(phrases.size).to eq(3)
+        expect(phrases.uniq.size).to eq(3)
+      end
+    end
+  end
+
+  describe '#most_recent_key_for_meta_key' do
+    it 'returns the most recently created key for the given meta key' do
+      old_commit_log = create(:commit_log, commit_datetime: DateTime.now - 5)
+      new_commit_log = create(:commit_log, commit_datetime: DateTime.now)
+
+      old_phrase = create(:phrase, {
+        meta_key: 'foo', commit_id: old_commit_log.commit_id
+      })
+
+      new_phrase = create(:phrase, {
+        meta_key: 'foo', commit_id: new_commit_log.commit_id
+      })
+
+      key = datastore.most_recent_key_for_meta_key(repo_name, 'foo')
+      expect(key).to eq(new_phrase.key)
+    end
+  end
+
   describe '#unique_commit_count' do
     it 'returns the number of unique commits in the database' do
       commit_ids = create_list(:phrase, 3).map(&:commit_id)
