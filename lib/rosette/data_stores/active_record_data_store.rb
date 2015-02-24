@@ -124,11 +124,11 @@ module Rosette
               "missing params: #{missing_params.join(', ')}"
           end
 
-          Array(params[:commit_id]).flat_map do |commit_id|
-            phrase = lookup_phrase(
-              repo_name, params[:key], params[:meta_key], commit_id
-            )
+          phrases = phrase_model.lookup(params[:key], params[:meta_key])
+            .where(commit_id: Array(params[:commit_id]))
+            .where(repo_name: repo_name)
 
+          phrases.flat_map do |phrase|
             if phrase
               params = trans_model
                 .extract_params_from(params)
