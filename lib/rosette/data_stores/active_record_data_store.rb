@@ -128,35 +128,25 @@ module Rosette
             .where(commit_id: Array(params[:commit_id]))
             .where(repo_name: repo_name)
 
-          phrases.flat_map do |phrase|
-            if phrase
-              params = trans_model
-                .extract_params_from(params)
-                .merge(phrase_id: phrase.id)
+          phrases.each do |phrase|
+            params = trans_model
+              .extract_params_from(params)
+              .merge(phrase_id: phrase.id)
 
-              find_params = params.dup
-              find_params.delete(:translation)  # may have changed
+            find_params = params.dup
+            find_params.delete(:translation)  # may have changed
 
-              trans = trans_model.where(find_params)
-              trans << trans_model.new if trans.size == 0
+            trans = trans_model.where(find_params)
+            trans << trans_model.new if trans.size == 0
 
-              trans.map do |t|
-                t.assign_attributes(params)
+            trans.map do |t|
+              t.assign_attributes(params)
 
-                status = if t.new_record?
-                  :created
-                else
-                  t.changed? ? :changed : :unchanged
-                end
-
-                unless t.save
-                  raise(
-                    Rosette::DataStores::Errors::AddTranslationError,
-                    t.errors.full_messages.join(', ')
-                  )
-                end
-
-                { status: status, translation: t }
+              unless t.save
+                raise(
+                  Rosette::DataStores::Errors::AddTranslationError,
+                  t.errors.full_messages.join(', ')
+                )
               end
             end
           end
@@ -255,6 +245,7 @@ module Rosette
         end
       end
 
+      # status can be an array of statuses
       def each_commit_log_with_status(repo_name, status, &blk)
         if block_given?
           with_connection do
