@@ -98,6 +98,7 @@ module Rosette
         end
       end
 
+      # NOTE: commit_id can be an array of commit ids
       def lookup_phrase(repo_name, key, meta_key, commit_id)
         with_connection do
           phrase_model.lookup(key, meta_key)
@@ -108,7 +109,7 @@ module Rosette
       end
 
       # Params must include key or meta_key, commit_id, translation, and locale.
-      # commit_id can be an array of commit ids.
+      # NOTE: commit_id can be an array of commit ids.
       def add_or_update_translation(repo_name, params = {})
         with_connection do
           required_params = [
@@ -123,44 +124,41 @@ module Rosette
               "missing params: #{missing_params.join(', ')}"
           end
 
-          phrase = lookup_phrase(
-            repo_name, params[:key], params[:meta_key], params[:commit_id]
-          )
-
-          if phrase
-            params = trans_model
-              .extract_params_from(params)
-              .merge(phrase_id: phrase.id)
-
-            find_params = params.dup
-            find_params.delete(:translation)  # may have changed
-
-            trans = trans_model.where(find_params)
-            trans << trans_model.new if trans.size == 0
-
-            trans.map do |t|
-              t.assign_attributes(params)
-
-              status = if t.new_record?
-                :created
-              else
-                t.changed? ? :changed : :unchanged
-              end
-
-              unless t.save
-                raise(
-                  Rosette::DataStores::Errors::AddTranslationError,
-                  t.errors.full_messages.join(', ')
-                )
-              end
-
-              { status: status, translation: t }
-            end
-          else
-            raise(
-              Rosette::DataStores::Errors::PhraseNotFoundError,
-              "couldn't find phrase identified by key '#{params[:key]}' and meta key '#{params[:meta_key]}'"
+          Array(params[:commit_id]).flat_map do |commit_id|
+            phrase = lookup_phrase(
+              repo_name, params[:key], params[:meta_key], commit_id
             )
+
+            if phrase
+              params = trans_model
+                .extract_params_from(params)
+                .merge(phrase_id: phrase.id)
+
+              find_params = params.dup
+              find_params.delete(:translation)  # may have changed
+
+              trans = trans_model.where(find_params)
+              trans << trans_model.new if trans.size == 0
+
+              trans.map do |t|
+                t.assign_attributes(params)
+
+                status = if t.new_record?
+                  :created
+                else
+                  t.changed? ? :changed : :unchanged
+                end
+
+                unless t.save
+                  raise(
+                    Rosette::DataStores::Errors::AddTranslationError,
+                    t.errors.full_messages.join(', ')
+                  )
+                end
+
+                { status: status, translation: t }
+              end
+            end
           end
         end
       end
