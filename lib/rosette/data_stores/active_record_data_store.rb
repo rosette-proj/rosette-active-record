@@ -93,7 +93,7 @@ module Rosette
               trans.each { |t| yield t }
             end
           else
-            to_enum(__method__, repo_name, commit_id_map)
+            to_enum(__method__, repo_name, locale, commit_id_map)
           end
         end
       end
