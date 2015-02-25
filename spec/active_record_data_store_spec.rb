@@ -149,17 +149,6 @@ describe ActiveRecordDataStore do
       end
     end
 
-    it "raises an error if the phrase can't be found" do
-      expect(
-        lambda do
-          datastore.add_or_update_translation(
-            repo_name, key: 'foo', locale: 'foo',
-            commit_id: 'fake', translation: 'faketrans'
-          )
-        end
-      ).to raise_error(Rosette::DataStores::Errors::PhraseNotFoundError)
-    end
-
     it "raises an error if the model can't be saved" do
       phrase = create(:phrase)
 
