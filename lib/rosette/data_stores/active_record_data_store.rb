@@ -87,6 +87,7 @@ module Rosette
                   )
                 )
                 .where(locale: locale)
+                .includes(:phrase)
                 # .order(:updated_at)  # why are these here?
                 # .reverse_order
 
