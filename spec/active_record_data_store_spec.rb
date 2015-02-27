@@ -399,31 +399,20 @@ describe ActiveRecordDataStore do
     end
   end
 
-  describe '#commit_log_status' do
-    let(:commit_id) { '43210' }
-    let(:phrase_count) { 999 }
-    let(:translated_count) { 333 }
+  describe '#commit_log_locales_for' do
+    it 'returns the commit log locales for the given commit' do
+      commit_log = create(:commit_log)
+      commit_log_locales = create_list(
+        :commit_log_locale, 3, commit_id: commit_log.commit_id
+      )
 
-    it 'returns the status of a commit from a repo' do
-      commit_log = create(:commit_log, repo_name: repo_name, commit_id: commit_id, phrase_count: phrase_count)
-      commit_log_locales = create_list(:commit_log_locale, 5, commit_log: commit_log, translated_count: translated_count)
+      found_commit_log_locales = datastore.commit_log_locales_for(
+        repo_name, commit_log.commit_id
+      )
 
-      locales = commit_log_locales.map(&:locale)
-
-      datastore.commit_log_status(repo_name, commit_id).tap do |status|
-        expect(status[:commit_id]).to eq(commit_id)
-        expect(status[:status]).to eq(PhraseStatus::UNTRANSLATED)
-        expect(status[:phrase_count]).to eq(phrase_count)
-        locales_hash = locales.map do |locale|
-          {}.tap do |h|
-            h[:locale] = locale
-            h[:percent_translated] = (translated_count.to_f / phrase_count).round(2)
-            h[:translated_count] = translated_count
-          end
-        end
-        expect(sort_by_locale(status[:locales])).to eq(sort_by_locale(locales_hash))
-      end
-
+      expect(found_commit_log_locales.map(&:id)).to eq(
+        commit_log_locales.map(&:id)
+      )
     end
   end
 
@@ -438,9 +427,4 @@ describe ActiveRecordDataStore do
       expect(datastore.file_list_for_repo(repo_name).sort).to eq([first_file_name, second_file_name].sort)
     end
   end
-
-  def sort_by_locale(locales_hash)
-    locales_hash.sort { |a,b| a[:locale] <=> b[:locale] }
-  end
-
 end
