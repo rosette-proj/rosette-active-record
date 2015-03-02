@@ -5,7 +5,7 @@ gemspec
 ruby '2.0.0', engine: 'jruby', engine_version: '1.7.15'
 
 group :development, :test do
-  gem 'rosette-core', '~> 1.0.0', github: 'rosette-proj/rosette-core', branch: 'fix_status_command'
+  gem 'rosette-core', '~> 1.0.0', github: 'rosette-proj/rosette-core'
 
   gem 'pry', '~> 0.9.0'
   gem 'pry-nav'
