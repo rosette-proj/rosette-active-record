@@ -109,6 +109,14 @@ module Rosette
         end
       end
 
+      def lookup_commit_log(repo_name, commit_id)
+        with_connection do
+          commit_log_model
+            .where(repo_name: repo_name, commit_id: commit_id)
+            .first
+        end
+      end
+
       # Params must include key or meta_key, commit_id, translation, and locale.
       # NOTE: commit_id can be an array of commit ids.
       def add_or_update_translation(repo_name, params = {})

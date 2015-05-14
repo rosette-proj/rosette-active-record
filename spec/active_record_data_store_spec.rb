@@ -129,6 +129,14 @@ describe ActiveRecordDataStore do
     end
   end
 
+  describe '#lookup_commit_log' do
+    it 'finds the commit log by repo name and commit id' do
+      commit_log = create(:commit_log)
+      found_log = datastore.lookup_commit_log(repo_name, commit_log.commit_id)
+      expect(found_log.id).to eq(commit_log.id)
+    end
+  end
+
   describe '#add_or_update_translation' do
     it 'raises an error if params are missing' do
       phrase = create(:phrase)
