@@ -82,24 +82,6 @@ describe ActiveRecordDataStore do
     end
   end
 
-  describe '#translations_by_commits' do
-    it 'returns an array of translations whose phrases match the file and commit_id pairs in the map' do
-      translations = create_list(:translation, 5, locale: 'es')
-      commit_id_map = build_commit_id_map_from(translations.map(&:phrase))
-
-      datastore.translations_by_commits(repo_name, 'es', commit_id_map) do |found_trans|
-        trans = translations.find { |t| t.id == found_trans.id }
-        expect(trans).to_not be_nil
-        expect(trans.phrase_id).to eq(found_trans.phrase_id)
-        expect(trans.translation).to eq(found_trans.translation)
-        expect(trans.locale).to eq('es')
-        translations.delete(trans)
-      end
-
-      expect(translations.size).to eq(0)
-    end
-  end
-
   describe '#lookup_phrase' do
     it 'finds the phrase by key' do
       phrase_by_key = create(:phrase, key: 'foobar')
@@ -134,102 +116,6 @@ describe ActiveRecordDataStore do
       commit_log = create(:commit_log)
       found_log = datastore.lookup_commit_log(repo_name, commit_log.commit_id)
       expect(found_log.id).to eq(commit_log.id)
-    end
-  end
-
-  describe '#add_or_update_translation' do
-    it 'raises an error if params are missing' do
-      phrase = create(:phrase)
-      all_params = {
-        key: phrase.key,
-        commit_id: phrase.commit_id,
-        translation: 'new trans text',
-        locale: 'es'
-      }
-
-      [:key, :commit_id, :translation, :locale].each do |missing_param|
-        params = all_params.dup.tap { |p| p.delete(missing_param) }
-        expect(
-          lambda do
-            datastore.add_or_update_translation(params)
-          end
-        ).to raise_error(Rosette::DataStores::Errors::MissingParamError)
-      end
-    end
-
-    it "raises an error if the model can't be saved" do
-      phrase = create(:phrase)
-
-      expect(
-        lambda do
-          # should fail validations
-          datastore.add_or_update_translation(
-            repo_name, key: phrase.key,
-            commit_id: phrase.commit_id, locale: 'es',
-            translation: nil
-          )
-        end
-      ).to raise_error(Rosette::DataStores::Errors::AddTranslationError)
-    end
-
-    it 'replaces any existing translation text when phrase params match' do
-      new_translation_text = 'other translation text'
-      translation = create(:translation)
-
-      params = {
-        key: translation.phrase.key,
-        commit_id: translation.phrase.commit_id,
-        translation: new_translation_text,
-        locale: translation.locale
-      }
-
-      datastore.add_or_update_translation(repo_name, params)
-      expect(translation.reload.translation).to eq(new_translation_text)
-    end
-
-    it 'updates multiple translations if more than one translation is found' do
-      new_translation_text = 'other translation text'
-      translation = create(:translation)
-      other_translation = create(:translation, {
-        phrase_id: translation.phrase_id,
-        locale: translation.locale
-      })
-
-      params = {
-        key: translation.phrase.key,
-        commit_id: translation.phrase.commit_id,
-        translation: new_translation_text,
-        locale: translation.locale
-      }
-
-      datastore.add_or_update_translation(repo_name, params)
-      expect(translation.reload.translation).to eq(new_translation_text)
-      expect(other_translation.reload.translation).to eq(new_translation_text)
-    end
-
-    it 'creates a new translation' do
-      new_translation_text = "I'm a little teapot"
-      phrase = create(:phrase)
-
-      params = {
-        key: phrase.key,
-        commit_id: phrase.commit_id,
-        translation: new_translation_text,
-        locale: 'es'
-      }
-
-      translation_statuses = nil
-
-      expect do
-        translation_statuses = datastore.add_or_update_translation(
-          repo_name, params
-        )
-      end.to change { Translation.count }.by(1)
-
-      first_trans = Translation.first
-      expect(first_trans.phrase_id).to eq(phrase.id)
-      expect(first_trans.translation).to eq(new_translation_text)
-      expect(first_trans.locale).to eq('es')
     end
   end
 
@@ -299,7 +185,7 @@ describe ActiveRecordDataStore do
         CommitLog.first.tap do |log_entry|
           expect(log_entry.repo_name).to eq(repo_name)
           expect(log_entry.commit_id).to eq (commit_id)
-          expect(log_entry.status).to eq(PhraseStatus::UNTRANSLATED)
+          expect(log_entry.status).to eq(PhraseStatus::NOT_SEEN)
         end
       end
     end
@@ -309,13 +195,13 @@ describe ActiveRecordDataStore do
         create(:commit_log, commit_id: commit_id)
 
         expect do
-          datastore.add_or_update_commit_log(repo_name, commit_id, nil, PhraseStatus::PENDING)
+          datastore.add_or_update_commit_log(repo_name, commit_id, nil, PhraseStatus::PUSHED)
         end.to_not change { CommitLog.count }
 
         CommitLog.first.tap do |log_entry|
           expect(log_entry.repo_name).to eq(repo_name)
           expect(log_entry.commit_id).to eq(commit_id)
-          expect(log_entry.status).to eq(PhraseStatus::PENDING)
+          expect(log_entry.status).to eq(PhraseStatus::PUSHED)
         end
       end
     end
@@ -323,11 +209,11 @@ describe ActiveRecordDataStore do
 
   describe '#each_commit_log_with_status' do
     it 'yields all pending commit logs' do
-      create(:commit_log, status: PhraseStatus::UNTRANSLATED)
-      pending_commit_log = create(:commit_log, status: PhraseStatus::PENDING)
+      create(:commit_log, status: PhraseStatus::NOT_SEEN)
+      pending_commit_log = create(:commit_log, status: PhraseStatus::PUSHED)
 
       commit_logs = datastore.each_commit_log_with_status(
-        repo_name, Rosette::DataStores::PhraseStatus::PENDING
+        repo_name, Rosette::DataStores::PhraseStatus::PUSHED
       ).to_a
 
       expect(commit_logs.size).to eq(1)
@@ -337,12 +223,12 @@ describe ActiveRecordDataStore do
 
   describe '#commit_log_with_status_count' do
     it 'returns the count of pending commit logs' do
-      create(:commit_log, status: PhraseStatus::UNTRANSLATED)
-      create(:commit_log, status: PhraseStatus::PENDING)
+      create(:commit_log, status: PhraseStatus::NOT_SEEN)
+      create(:commit_log, status: PhraseStatus::PUSHED)
 
       expect(
         datastore.commit_log_with_status_count(
-          repo_name, Rosette::DataStores::PhraseStatus::PENDING
+          repo_name, Rosette::DataStores::PhraseStatus::PUSHED
         )
       ).to eq(1)
     end

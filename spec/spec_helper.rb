@@ -17,7 +17,6 @@ RSpec.configure do |config|
   )
 
   Phrase = Rosette::DataStores::ActiveRecordDataStore::Phrase
-  Translation = Rosette::DataStores::ActiveRecordDataStore::Translation
   CommitLog = Rosette::DataStores::ActiveRecordDataStore::CommitLog
   CommitLogLocale = Rosette::DataStores::ActiveRecordDataStore::CommitLogLocale
 

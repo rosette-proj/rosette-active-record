@@ -72,33 +72,6 @@ module Rosette
         end
       end
 
-      def translations_by_commits(repo_name, locale, commit_id_map)
-        with_connection do
-          if block_given?
-            each_phrase_condition_slice(commit_id_map) do |conditions|
-              trans = trans_model
-                .where(
-                  trans_model[:phrase_id].in(
-                    phrase_model
-                      .select(:id)
-                      .where(repo_name: repo_name)
-                      .where(conditions)
-                      .ast
-                  )
-                )
-                .where(locale: locale)
-                .includes(:phrase)
-                # .order(:updated_at)  # why are these here?
-                # .reverse_order
-
-              trans.each { |t| yield t }
-            end
-          else
-            to_enum(__method__, repo_name, locale, commit_id_map)
-          end
-        end
-      end
-
       # NOTE: commit_id can be an array of commit ids
       def lookup_phrase(repo_name, key, meta_key, commit_id)
         with_connection do
@@ -114,51 +87,6 @@ module Rosette
           commit_log_model
             .where(repo_name: repo_name, commit_id: commit_id)
             .first
-        end
-      end
-
-      # Params must include key or meta_key, commit_id, translation, and locale.
-      # NOTE: commit_id can be an array of commit ids.
-      def add_or_update_translation(repo_name, params = {})
-        with_connection do
-          required_params = [
-            phrase_model.index_key(params[:key], params[:meta_key]),
-            :commit_id, :translation, :locale
-          ]
-
-          missing_params = required_params - params.keys
-
-          if missing_params.size > 0
-            raise Rosette::DataStores::Errors::MissingParamError,
-              "missing params: #{missing_params.join(', ')}"
-          end
-
-          phrases = phrase_model.lookup(params[:key], params[:meta_key])
-            .where(commit_id: Array(params[:commit_id]))
-            .where(repo_name: repo_name)
-
-          phrases.each do |phrase|
-            params = trans_model
-              .extract_params_from(params)
-              .merge(phrase_id: phrase.id)
-
-            find_params = params.dup
-            find_params.delete(:translation)  # may have changed
-
-            trans = trans_model.where(find_params)
-            trans << trans_model.new if trans.size == 0
-
-            trans.map do |t|
-              t.assign_attributes(params)
-
-              unless t.save
-                raise(
-                  Rosette::DataStores::Errors::AddTranslationError,
-                  t.errors.full_messages.join(', ')
-                )
-              end
-            end
-          end
         end
       end
 
@@ -368,10 +296,6 @@ module Rosette
 
       def phrase_model
         self.class::Phrase
-      end
-
-      def trans_model
-        self.class::Translation
       end
 
       def commit_log_model
