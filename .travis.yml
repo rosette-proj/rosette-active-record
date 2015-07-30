@@ -1,12 +1,15 @@
+sudo: false
 language: ruby
+jdk:
+  - oraclejdk8
+cache:
+  - bundler
 rvm:
   - jruby-1.7.15
 env:
-  - JRUBY_OPTS="--2.0" TEST_DB_USER=travis TEST_DB_PASSWORD=""
+  - GIT_BUNDLE=true JRUBY_OPTS="--2.0" TEST_DB_USER=travis TEST_DB_PASSWORD=""
 before_script:
   - mysql -e 'create database rosette_test;'
   - bundle exec rake db:setup
   - bundle exec expert install
 script: 'bundle exec rspec'
-sudo: false
-cache: bundler
