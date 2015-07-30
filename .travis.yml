@@ -6,6 +6,7 @@ env:
 before_script:
   - mysql -e 'create database rosette_test;'
   - bundle exec rake db:setup
+  - bundle exec expert install
 script: 'bundle exec rspec'
 sudo: false
 cache: bundler
