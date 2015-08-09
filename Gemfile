@@ -15,6 +15,13 @@ end
 
 group :test do
   gem 'codeclimate-test-reporter', require: nil
+
+  if ENV['ACTIVE_RECORD_VERSION']
+    gem 'activerecord', ENV['ACTIVE_RECORD_VERSION']
+  else
+    gem 'activerecord'
+  end
+  
   gem 'activerecord-jdbcmysql-adapter', '~> 1.3.0'
   gem 'factory_girl', '~> 4.4.0'
   gem 'rspec'
