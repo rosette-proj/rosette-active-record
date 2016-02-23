@@ -184,20 +184,23 @@ module Rosette
       end
 
       # status can be an array of statuses
-      def each_commit_log_with_status(repo_name, status, &blk)
+      def each_commit_log_with_status(repo_name, status, branch_name = nil, &blk)
         if block_given?
           with_connection do
-            commit_log_model.where(status: status, repo_name: repo_name)
-              .find_each(batch_size: CHUNK_SIZE, &blk)
+            query = commit_log_model.where(status: status, repo_name: repo_name)
+            query = query.where(branch_name: branch_name) if branch_name
+            query.find_each(batch_size: CHUNK_SIZE, &blk)
           end
         else
-          to_enum(__method__, repo_name, status)
+          to_enum(__method__, repo_name, status, branch_name)
         end
       end
 
-      def commit_log_with_status_count(repo_name, status)
+      def commit_log_with_status_count(repo_name, status, branch_name = nil)
         with_connection do
-          commit_log_model.where(status: status, repo_name: repo_name).count
+          query = commit_log_model.where(status: status, repo_name: repo_name)
+          query = query.where(branch_name: branch_name) if branch_name
+          query.count
         end
       end
 

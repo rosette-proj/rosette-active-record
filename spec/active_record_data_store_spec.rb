@@ -219,6 +219,18 @@ describe ActiveRecordDataStore do
       expect(commit_logs.size).to eq(1)
       expect(commit_logs.first.commit_id).to eq(pending_commit_log.commit_id)
     end
+
+    it 'only returns commits in the branch if given' do
+      commit_log = create(:commit_log, status: PhraseStatus::PUSHED, branch_name: 'foo/bar')
+      create(:commit_log, status: PhraseStatus::PUSHED, branch_name: 'master')
+
+      commit_logs = datastore.each_commit_log_with_status(
+        repo_name, Rosette::DataStores::PhraseStatus::PUSHED, 'foo/bar'
+      ).to_a
+
+      expect(commit_logs.size).to eq(1)
+      expect(commit_logs.first.commit_id).to eq(commit_log.commit_id)
+    end
   end
 
   describe '#commit_log_with_status_count' do
@@ -229,6 +241,17 @@ describe ActiveRecordDataStore do
       expect(
         datastore.commit_log_with_status_count(
           repo_name, Rosette::DataStores::PhraseStatus::PUSHED
+        )
+      ).to eq(1)
+    end
+
+    it 'only returns the number of commits in the branch' do
+      commit_log = create(:commit_log, status: PhraseStatus::PUSHED, branch_name: 'foo/bar')
+      create(:commit_log, status: PhraseStatus::PUSHED, branch_name: 'master')
+
+      expect(
+        datastore.commit_log_with_status_count(
+          repo_name, Rosette::DataStores::PhraseStatus::PUSHED, 'foo/bar'
         )
       ).to eq(1)
     end
